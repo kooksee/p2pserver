@@ -11,12 +11,14 @@ import (
 	"encoding/hex"
 )
 
+const configFile = "config.yaml"
+
 func genCFg(_ *cli.Context) error {
 	EnsureDir(cfg.Home, os.FileMode(0755))
 	EnsureDir(cfg.DbPath, os.FileMode(0755))
 	EnsureDir(cfg.LogPath, os.FileMode(0755))
 
-	cfg.GetExtIp()
+	cfg.InitExtIp()
 	if cfg.AdvertiseUdpAddr == "" {
 		cfg.AdvertiseUdpAddr = fmt.Sprintf("%s:%d", cfg.ExtIP, cfg.UdpPort)
 	}
@@ -41,7 +43,7 @@ func genCFg(_ *cli.Context) error {
 		return err
 	}
 
-	if err := ioutil.WriteFile(path.Join(cfg.Home, "config.yaml"), data, os.FileMode(0755)); err != nil {
+	if err := ioutil.WriteFile(path.Join(cfg.Home, configFile), data, os.FileMode(0755)); err != nil {
 		return err
 	}
 	return nil

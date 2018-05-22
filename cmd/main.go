@@ -4,9 +4,10 @@ import (
 	"time"
 	"sort"
 	"github.com/urfave/cli"
+	"os"
 )
 
-func RunCmd(args []string) {
+func RunCmd() {
 	app := cli.NewApp()
 	app.Compiled = time.Now()
 	app.Version = cfg.Version
@@ -15,7 +16,7 @@ func RunCmd(args []string) {
 
 	sort.Sort(cli.FlagsByName(app.Flags))
 	sort.Sort(cli.CommandsByName(app.Commands))
-	if err := app.Run(args); err != nil {
-		cfg.Log().Error(err.Error())
+	if err := app.Run(os.Args); err != nil {
+		logger.Error(err.Error())
 	}
 }

@@ -1,123 +1,92 @@
 package config
 
 import (
-	"github.com/spf13/viper"
-	"encoding/json"
-	"net/http"
+	"github.com/dgraph-io/badger"
 	"time"
-	"io/ioutil"
-	"bytes"
 	"os"
 	"github.com/kooksee/log"
-	"github.com/dgraph-io/badger"
+	"github.com/patrickmn/go-cache"
+	"path"
 	"github.com/kooksee/sp2p"
-	"github.com/kooksee/crypt"
 )
 
-func (t *Config) LoadConfigFile() {
-	if _, err := ioutil.ReadFile(t.configPath); os.IsNotExist(err) {
-		return
-	}
-
-	v := viper.New()
-	v.SetConfigType("yaml")
-	v.SetConfigName("config")
-
-	v.AddConfigPath(t.Home)
-
-	if err := v.ReadInConfig(); err != nil {
-		panic(err.Error())
-	}
-
-	if err := v.Unmarshal(t); err != nil {
-		panic(err.Error())
-	}
-
-	if t.LogLevel != "error" {
-		d, _ := json.Marshal(t)
-		t.l.Debug("config")
-		t.l.Debug(string(d))
-	}
+func GetLog(ctx ...interface{}) log.Logger {
+	return Log().New(ctx...)
 }
 
-// 获取外网地址
-func (t *Config) GetExtIp() {
-	logger := t.l
-	for {
-		resp, err := http.Get("http://ipinfo.io/ip")
-		if err != nil {
-			logger.Error("获取外网地址失败", "err", err)
-			time.Sleep(time.Second * 2)
-			continue
-		}
-		extIp, _ := ioutil.ReadAll(resp.Body)
-		t.ExtIP = string(bytes.TrimSpace(extIp))
-		if t.ExtIP == "" {
-			logger.Error("获取不到外网IP")
-			time.Sleep(time.Second * 2)
-			continue
-		}
-		logger.Info("获取外网IP", "ip", t.ExtIP)
-		break
+func GetDb() *badger.DB {
+	cfg := GetCfg()
+	if cfg.db == nil {
+		panic("please init db")
 	}
-}
-func (t *Config) InitP2pConfig() {
-	kcfg := sp2p.DefaultKConfig()
-	priv, err := crypto.LoadECDSA(t.PriV)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	kcfg.PriV = priv
-	kcfg.Db = t.Db
-	kcfg.Host = t.UdpHost
-	kcfg.Port = t.UdpPort
-	kcfg.LogLevel = t.LogLevel
-	sp2p.SetCfg(kcfg)
+	return cfg.db
 }
 
-func (t *Config) InitDb() {
-	opts := badger.DefaultOptions
-	opts.Dir = t.DbPath
-	opts.ValueDir = t.DbPath
-	db, err := badger.Open(opts)
-	if err != nil {
-		panic(err.Error())
+func GetP2p() *sp2p.SP2p {
+	cfg := GetCfg()
+	if cfg.p2p == nil {
+		panic("please init sp2p")
 	}
-	t.Db = db
+	return cfg.p2p
 }
 
-func (t *Config) Log() log.Logger {
-	if t.l == nil {
+func Log() log.Logger {
+	cfg := GetCfg()
+	if cfg.l == nil {
 		panic("please init log")
 	}
-	return t.l
+	return cfg.l
 }
 
-func (t *Config) GetLog(ctx ...interface{}) log.Logger {
-	if t.l == nil {
-		panic("please init log")
+func GetCfg() *Config {
+	if instance == nil {
+		panic("please init config")
 	}
-	return t.l.New(ctx...)
+	return instance
 }
 
-func (t *Config) InitLog() {
-	t.l = log.New()
-	if t.LogLevel != "error" {
-		ll, err := log.LvlFromString(t.LogLevel)
-		if err != nil {
-			panic(err.Error())
-		}
-		t.l.SetHandler(log.LvlFilterHandler(ll, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
-	} else {
-		h, err := log.FileHandler(t.LogPath, log.LogfmtFormat())
-		if err != nil {
-			t.l.Error(err.Error())
-			panic(err.Error())
-		}
-		log.MultiHandler(
-			log.LvlFilterHandler(log.LvlError, log.StreamHandler(os.Stderr, log.LogfmtFormat())),
-			h,
-		)
+func GetCache() *cache.Cache {
+	return GetCfg().cache
+}
+
+func NewCfg(defaultHomeDir string) *Config {
+	defaultHomeDir = GetHomeDir(defaultHomeDir)
+	instance = &Config{
+		UdpPort:           8081,
+		UdpHost:           "0.0.0.0",
+		HttpHost:          "0.0.0.0",
+		HttpPort:          8080,
+		AdvertiseHttpAddr: "",
+		AdvertiseUdpAddr:  "",
+		LogLevel:          "debug",
+		cache:             cache.New(time.Minute, 5*time.Minute),
+		home:              defaultHomeDir,
+		Version:           "1.0.0",
 	}
+
+	if instance.DbPath == "" {
+		instance.DbPath = path.Join(instance.home, "db")
+	}
+
+	if instance.LogPath == "" {
+		instance.LogPath = path.Join(instance.home, "log")
+	}
+
+	if instance.PriV == "" {
+		instance.PriV = path.Join(instance.home, "private.key")
+	}
+
+	if instance.configPath == "" {
+		instance.configPath = path.Join(instance.home, "config.yaml")
+	}
+
+	return instance
+}
+
+func GetHomeDir(defaultHome string) string {
+	if len(os.Args) > 2 && os.Args[len(os.Args)-2] == "--home" {
+		defaultHome = os.Args[len(os.Args)-1]
+		os.Args = os.Args[:len(os.Args)-2]
+	}
+	return defaultHome
 }

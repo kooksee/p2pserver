@@ -7,7 +7,14 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/kooksee/log"
 	"time"
-	"path"
+	"os"
+	"net/http"
+	"io/ioutil"
+	"bytes"
+	"github.com/spf13/viper"
+	"github.com/kooksee/sp2p"
+	"github.com/kooksee/crypt"
+	"net"
 )
 
 var (
@@ -18,9 +25,10 @@ var (
 type Config struct {
 	l          log.Logger
 	configPath string
-	Cache      *cache.Cache `yaml:"-"`
-	Db         *badger.DB   `yaml:"-"`
-	Home       string       `yaml:"-"`
+	cache      *cache.Cache
+	db         *badger.DB
+	home       string
+	p2p        *sp2p.SP2p
 
 	Version  string `mapstructure:"version" yaml:"version"`
 	DbPath   string `mapstructure:"db_path" yaml:"db_path"`
@@ -42,38 +50,101 @@ type Config struct {
 	PriV  string   `mapstructure:"priv" yaml:"priv"`
 }
 
-func GetCfg(home string) *Config {
-	once.Do(func() {
-		instance = &Config{
-			UdpPort:           8081,
-			UdpHost:           "0.0.0.0",
-			HttpHost:          "0.0.0.0",
-			HttpPort:          8080,
-			AdvertiseHttpAddr: "",
-			AdvertiseUdpAddr:  "",
-			LogLevel:          "debug",
-			Cache:             cache.New(time.Minute, 5*time.Minute),
-			Home:              home,
-		}
+func (t *Config) InitConfigFile() {
+	if _, err := os.Stat(t.configPath); os.IsNotExist(err) {
+		return
+	}
 
-		if instance.DbPath == "" {
-			instance.DbPath = path.Join(instance.Home, "db")
-		}
+	v := viper.New()
+	v.SetConfigType("yaml")
+	v.SetConfigName("config")
+	v.AddConfigPath(t.home)
 
-		if instance.LogPath == "" {
-			instance.LogPath = path.Join(instance.Home, "log")
-		}
+	if err := v.ReadInConfig(); err != nil {
+		panic(err.Error())
+	}
 
-		if instance.PriV == "" {
-			instance.PriV = path.Join(instance.Home, "private.key")
-		}
+	if err := v.Unmarshal(t); err != nil {
+		panic(err.Error())
+	}
+}
 
-		if instance.configPath == "" {
-			instance.configPath = path.Join(instance.Home, "config.yaml")
+// 获取外网地址
+func (t *Config) InitExtIp() {
+	logger := Log()
+	for {
+		resp, err := http.Get("http://ipinfo.io/ip")
+		if err != nil {
+			logger.Error("获取外网地址失败", "err", err)
+			time.Sleep(time.Second * 2)
+			continue
 		}
+		extIp, _ := ioutil.ReadAll(resp.Body)
+		t.ExtIP = string(bytes.TrimSpace(extIp))
+		if t.ExtIP == "" {
+			logger.Error("获取不到外网IP")
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		logger.Info("获取外网IP", "ip", t.ExtIP)
+		break
+	}
+}
+func (t *Config) InitP2pConfig() {
+	kcfg := sp2p.InitKConfig()
+	priv, err := crypto.LoadECDSA(t.PriV)
+	if err != nil {
+		Log().Error(err.Error())
+		panic(err.Error())
+	}
+	kcfg.InitDb(GetDb())
+	kcfg.InitLog(Log())
+	kcfg.PriV = priv
 
-		instance.InitLog()
-		instance.LoadConfigFile()
-	})
-	return instance
+	kcfg.Host = t.UdpHost
+	kcfg.Port = t.UdpPort
+
+	addr, err := net.ResolveUDPAddr("udp", t.AdvertiseUdpAddr)
+	if err != nil {
+		Log().Error(err.Error())
+		panic(err.Error())
+	}
+	kcfg.AdvertiseAddr = addr
+}
+
+func (t *Config) InitP2p(seeds []string) {
+	t.p2p = sp2p.NewSP2p(seeds)
+}
+
+func (t *Config) InitDb() {
+	opts := badger.DefaultOptions
+	opts.Dir = t.DbPath
+	opts.ValueDir = t.DbPath
+	db, err := badger.Open(opts)
+	if err != nil {
+		Log().Error(err.Error())
+		panic(err.Error())
+	}
+	t.db = db
+}
+
+func (t *Config) InitLog() {
+	t.l = log.New()
+	if t.LogLevel != "error" {
+		ll, err := log.LvlFromString(t.LogLevel)
+		if err != nil {
+			panic(err.Error())
+		}
+		t.l.SetHandler(log.LvlFilterHandler(ll, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
+	} else {
+		h, err := log.FileHandler(t.LogPath, log.LogfmtFormat())
+		if err != nil {
+			t.l.Error(err.Error())
+			panic(err.Error())
+		}
+		log.MultiHandler(
+			log.LvlFilterHandler(log.LvlError, log.StreamHandler(os.Stderr, log.LogfmtFormat())),
+			h,
+		)
+	}
 }

@@ -10,8 +10,6 @@ func ServerCmd() cli.Command {
 
 			//node.New(cfg.Seeds).RunHttpServer()
 
-			//cfg.Cache = cache.New(time.Minute, 5*time.Minute)
-
 			return nil
 		},
 	}

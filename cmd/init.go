@@ -13,9 +13,9 @@ var (
 	cfg    *config.Config
 )
 
-func SetCfg(c *config.Config) {
-	cfg = c
-	logger = cfg.GetLog("package", "cmd")
+func Init() {
+	cfg = config.GetCfg()
+	logger = config.GetLog("package", "cmd")
 }
 
 func homeFlag() cli.StringFlag     { return cli.StringFlag{Name: "home", Value: cfg.Home, Destination: &cfg.Home, Usage: "app config home"} }

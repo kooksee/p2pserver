@@ -12,10 +12,12 @@ var (
 	logger log.Logger
 	hm     *sp2p.HandleManager
 	cfg    *config.Config
+	p2p    *sp2p.SP2p
 )
 
-func SetCfg(c *config.Config) {
-	cfg = c
+func init() {
+	cfg = config.GetCfg()
 	hm = sp2p.GetHManager()
-	logger = cfg.GetLog("package", "node")
+	logger = config.GetLog("package", "node")
+	p2p = config.GetP2p()
 }
