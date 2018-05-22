@@ -10,6 +10,8 @@ import (
 	"os"
 	"github.com/kooksee/log"
 	"github.com/dgraph-io/badger"
+	"github.com/kooksee/sp2p"
+	"github.com/kooksee/crypt"
 )
 
 func (t *Config) LoadConfigFile() {
@@ -32,7 +34,6 @@ func (t *Config) LoadConfigFile() {
 		d, _ := json.Marshal(t)
 		t.l.Info(string(d))
 	}
-
 }
 
 // 获取外网地址
@@ -55,6 +56,20 @@ func (t *Config) GetExtIp() {
 		logger.Info("获取外网IP", "ip", t.ExtIP)
 		break
 	}
+}
+func (t *Config) InitP2pConfig() {
+	kcfg := sp2p.DefaultKConfig()
+	priv, err := crypto.LoadECDSA(t.PriV)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	kcfg.PriV = priv
+	kcfg.Db = t.Db
+	kcfg.Host = t.UdpHost
+	kcfg.Port = t.UdpPort
+	kcfg.LogLevel = t.LogLevel
+	sp2p.SetCfg(kcfg)
 }
 
 func (t *Config) InitDb() {

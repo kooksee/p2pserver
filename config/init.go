@@ -19,10 +19,12 @@ type Config struct {
 	l        log.Logger
 	Cache    *cache.Cache `mapstructure:"_" yaml:"-"`
 	Db       *badger.DB   `mapstructure:"_" yaml:"-"`
+	Home     string       `mapstructure:"_" yaml:"_"`
 	DbPath   string       `mapstructure:"db_path" yaml:"db_path"`
+
 	LogPath  string       `mapstructure:"log_path" yaml:"log_path"`
 	LogLevel string       `mapstructure:"log_level" yaml:"log_level"`
-	Home     string       `mapstructure:"home" yaml:"home"`
+
 	UdpPort  int          `mapstructure:"udp_port" yaml:"udp_port"`
 	UdpHost  string       `mapstructure:"udp_host" yaml:"udp_host"`
 
