@@ -1,44 +1,21 @@
 package main
 
 import (
-	"time"
-	"github.com/kooksee/p2pserver/config"
 	"os"
-	"github.com/urfave/cli"
-	"sort"
 	"github.com/kooksee/p2pserver/cmd"
+	"github.com/kooksee/p2pserver/config"
 )
 
 const Version = "1.0"
 
 func main() {
-	cfg := config.GetCfg()
-	cfg.InitLog()
+	home := "kdata"
+	if len(os.Args) > 2 && os.Args[len(os.Args)-2] == "--home" {
+		home = os.Args[len(os.Args)-1]
+		os.Args = os.Args[:len(os.Args)-2]
+	}
+	cfg := config.GetCfg(home)
+	cfg.Version = Version
 	cmd.SetCfg(cfg)
-
-	app := cli.NewApp()
-	app.Compiled = time.Now()
-	app.Version = Version
-	app.Authors = []cli.Author{{
-		Name:  "pike white",
-		Email: "human@example.com",
-	}}
-	app.Flags = []cli.Flag{
-		cli.StringFlag{Name: "home", Value: cfg.Home, Destination: &cfg.Home, Usage: "app config home"},
-	}
-	app.Before = func(c *cli.Context) error {
-		cfg.LoadConfigFile()
-		return nil
-	}
-	app.Commands = []cli.Command{
-		cmd.ServerCmd(),
-		cmd.ConfigCmd(),
-		cmd.AccountCmd(),
-	}
-
-	sort.Sort(cli.FlagsByName(app.Flags))
-	sort.Sort(cli.CommandsByName(app.Commands))
-	if err := app.Run(os.Args); err != nil {
-		panic(err.Error())
-	}
+	cmd.RunCmd(os.Args)
 }

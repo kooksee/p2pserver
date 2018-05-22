@@ -15,6 +15,9 @@ import (
 )
 
 func (t *Config) LoadConfigFile() {
+	if _, err := ioutil.ReadFile(t.configPath); os.IsNotExist(err) {
+		return
+	}
 
 	v := viper.New()
 	v.SetConfigType("yaml")
@@ -32,7 +35,8 @@ func (t *Config) LoadConfigFile() {
 
 	if t.LogLevel != "error" {
 		d, _ := json.Marshal(t)
-		t.l.Info(string(d))
+		t.l.Debug("config")
+		t.l.Debug(string(d))
 	}
 }
 
@@ -81,6 +85,13 @@ func (t *Config) InitDb() {
 		panic(err.Error())
 	}
 	t.Db = db
+}
+
+func (t *Config) Log() log.Logger {
+	if t.l == nil {
+		panic("please init log")
+	}
+	return t.l
 }
 
 func (t *Config) GetLog(ctx ...interface{}) log.Logger {
