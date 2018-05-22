@@ -1,0 +1,13 @@
+db_path: kdata/db
+log_path: kdata/log
+log_level: error
+home: kdata
+udp_port: 8081
+udp_host: 0.0.0.0
+http_port: 8080
+http_host: 0.0.0.0
+ext_ip: 112.65.171.98
+advertise_udp_addr: 112.65.171.98:8081
+advertise_http_addr: 112.65.171.98:8080
+seeds: []
+priv: ""

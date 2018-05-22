@@ -34,8 +34,9 @@ type KVNode struct {
 
 func (n *KVNode) RunHttpServer() {
 	router := gin.Default()
-	router.POST("/kv", n.indexPost)
-	router.GET("/kv/:id", n.indexGet)
+	router.POST("/", n.indexPost)
+	router.POST("/:id", n.indexPost)
+	router.GET("/ws", n.indexGet)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", "0.0.0.0", cfg.HttpPort), router); err != nil {
 		panic(err)
 	}

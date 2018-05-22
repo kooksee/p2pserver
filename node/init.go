@@ -2,18 +2,20 @@ package node
 
 import (
 	"github.com/json-iterator/go"
-	"github.com/kooksee/log"
 	"github.com/kooksee/sp2p"
 	"github.com/kooksee/p2pserver/config"
+	"github.com/kooksee/log"
 )
 
 var (
 	json   = jsoniter.ConfigCompatibleWithStandardLibrary
-	logger = log.New("package", "node")
-	hm     = sp2p.GetHManager()
+	logger log.Logger
+	hm     *sp2p.HandleManager
 	cfg    *config.Config
 )
 
-func SetCfg(cfg1 *config.Config) {
-	cfg = cfg1
+func SetCfg(c *config.Config) {
+	cfg = c
+	hm = sp2p.GetHManager()
+	logger = cfg.GetLog("package", "node")
 }
