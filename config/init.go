@@ -5,7 +5,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	"github.com/dgraph-io/badger"
-	"github.com/kooksee/log"
+	log "github.com/inconshreveable/log15"
 	"time"
 	"os"
 	"net/http"
@@ -13,7 +13,6 @@ import (
 	"bytes"
 	"github.com/spf13/viper"
 	"github.com/kooksee/sp2p"
-	"github.com/kooksee/crypt"
 	"net"
 )
 
@@ -90,16 +89,10 @@ func (t *Config) InitExtIp() {
 		break
 	}
 }
-func (t *Config) InitP2pConfig() {
-	kcfg := sp2p.InitKConfig()
-	priv, err := crypto.LoadECDSA(t.PriV)
-	if err != nil {
-		Log().Error(err.Error())
-		panic(err.Error())
-	}
+func (t *Config) InitP2pConfig(seeds ... string) {
+	kcfg := sp2p.DefaultKConfig()
 	kcfg.InitDb(GetDb())
 	kcfg.InitLog(Log())
-	kcfg.PriV = priv
 
 	kcfg.Host = t.UdpHost
 	kcfg.Port = t.UdpPort
@@ -110,10 +103,9 @@ func (t *Config) InitP2pConfig() {
 		panic(err.Error())
 	}
 	kcfg.AdvertiseAddr = addr
-}
+	kcfg.Seeds = seeds
 
-func (t *Config) InitP2p(seeds []string) {
-	t.p2p = sp2p.NewSP2p(seeds)
+	t.p2p = sp2p.NewSP2p()
 }
 
 func (t *Config) InitDb() {
@@ -135,7 +127,7 @@ func (t *Config) InitLog() {
 		if err != nil {
 			panic(err.Error())
 		}
-		t.l.SetHandler(log.LvlFilterHandler(ll, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
+		t.l.SetHandler(log.LvlFilterHandler(ll, log.StreamHandler(os.Stdout, log.TerminalFormat())))
 	} else {
 		h, err := log.FileHandler(t.LogPath, log.LogfmtFormat())
 		if err != nil {

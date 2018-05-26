@@ -4,7 +4,7 @@ import (
 	"github.com/dgraph-io/badger"
 	"time"
 	"os"
-	"github.com/kooksee/log"
+	log "github.com/inconshreveable/log15"
 	"github.com/patrickmn/go-cache"
 	"path"
 	"github.com/kooksee/sp2p"
